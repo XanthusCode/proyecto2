@@ -341,7 +341,7 @@
      
 
   3. Calcula cuántos profesores hay en cada departamento. El resultado sólo debe mostrar dos columnas, una con el nombre del departamento y otra con el número de profesores que hay en ese departamento. El resultado  sólo debe incluir los departamentos que tienen profesores asociados y
-  deberá estar ordenado de mayor a menor por el número de profesores.
+    deberá estar ordenado de mayor a menor por el número de profesores.
 
   ```sql
   SELECT d.Nombre_departamento, COUNT(p.id_profesor) AS total_profesores
@@ -425,14 +425,30 @@
   Program did not output anything!
   ```
 
-  
+
 7. Devuelve un listado que muestre el nombre de los grados y la suma del número total de créditos que hay para cada tipo de asignatura. El resultado debe tener tres columnas: nombre del grado, tipo de asignatura y la suma de los créditos de todas las asignaturas que hay de ese tipo. Ordene el resultado de mayor a menor por el número total de créditos.
 
-  ```sql
-  
-  ```
+   ```sql
+   SELECT g.nombre_grado, ta.tipo, SUM(a.creditos) AS total_creditos
+   FROM Grado g
+   INNER JOIN  Asignatura AS a ON g.id_grado = a.id_grado
+   INNER JOIN AsignaturaTipo AS ast ON a.id_asignatura = ast.id_asignatura
+   INNER JOIN TipoAsignatura AS ta ON ast.id_tipo = ta.id_tipo
+   GROUP BY g.nombre_grado, ta.tipo
+   ORDER BY total_creditos DESC; 
+   
+   +--------------------------+-------------+----------------+
+   | nombre_grado             | tipo        | total_creditos |
+   +--------------------------+-------------+----------------+
+   | Ingeniería Informática   | Obligatoria |              8 |
+   | Primer grado             | Obligatoria |              6 |
+   | Tercer grado             | Optativa    |              5 |
+   +--------------------------+-------------+----------------+
+   ```
 
-  
+   
+
+
 8. Devuelve un listado que muestre cuántos alumnos se han matriculado de alguna asignatura en cada uno de los cursos escolares. El resultado deberá mostrar dos columnas, una columna con el año de inicio del curso escolar y otra con el número de alumnos matriculados.
 
   ```sql
@@ -451,7 +467,7 @@
   +-------------+----------------------------+
   ```
 
-  
+
 9. Devuelve un listado con el número de asignaturas que imparte cada profesor. El listado debe tener en cuenta aquellos profesores que no imparten ninguna asignatura. El resultado mostrará cinco columnas: id, nombre, primer apellido, segundo apellido y número de asignaturas. El resultado estará ordenado de mayor a menor por el número de asignaturas.
 
   ```sql
@@ -573,7 +589,272 @@
 
 ##### Vistas
 
+1. Vista que muestra el nombre del grado y la cantidad de alumnos matriculados en cada uno.
 
+   ```sql
+   CREATE VIEW vista_alumnos_por_grado AS
+   SELECT g.nombre_grado, COUNT(al.id_alumno) AS total_alumnos
+   FROM Grado g
+   LEFT JOIN alumno_se_matricula_asignatura asm ON g.id_grado = asm.id_grado
+   LEFT JOIN alumno al ON asm.id_alumno = al.id_alumno
+   GROUP BY g.nombre_grado;
+   ```
+
+2. Vista que muestra los profesores que no están asociados a ningún departamento.
+
+   ```sql
+   CREATE VIEW vista_profesores_sin_departamento AS
+   SELECT id_profesor, Nombre_profesor, Apellido1_profesor, Apellido2_profesor
+   FROM profesor
+   WHERE id_departamento IS NULL;
+   ```
+
+3. Vista que muestra los departamentos que no tienen ningún profesor asociado.
+
+   ```sql
+   CREATE VIEW vista_departamentos_sin_profesores AS
+   SELECT d.id_departamento, d.Nombre_departamento
+   FROM departamento d
+   LEFT JOIN profesor p ON d.id_departamento = p.id_departamento
+   WHERE p.id_profesor IS NULL;
+   ```
+
+4. Vista que muestra las asignaturas que no tienen ningún profesor asignado.
+
+   ```sql
+   CREATE VIEW vista_asignaturas_sin_profesor AS
+   SELECT id_asignatura, Nombre_asignatura
+   FROM Asignatura
+   WHERE id_profesor IS NULL;
+   ```
+
+5. Vista que muestra los departamentos que no han impartido ninguna asignatura en ningún curso escolar.
+
+   ```sql
+   CREATE VIEW vista_departamentos_sin_asignaturas AS
+   SELECT d.Nombre_departamento
+   FROM departamento d
+   LEFT JOIN profesor p ON d.id_departamento = p.id_departamento
+   LEFT JOIN Asignatura a ON p.id_profesor = a.id_profesor
+   LEFT JOIN AsignaturaCurso ac ON a.id_asignatura = ac.id_asignatura
+   WHERE ac.id_asignatura IS NULL;
+   ```
+
+6. Vista que muestra las alumnas matriculadas en Ingeniería Informática (Plan 2015)
+
+   ```sql
+   CREATE VIEW Alumnas_Informatica AS
+   SELECT a.id_alumno, a.Nombre_alumno, a.Apellido1_alumno, a.Apellido2_alumno
+   FROM alumno a
+   JOIN alumno_detalle ad ON a.id_alumno = ad.id_alumno
+   JOIN contacto c ON ad.id_contacto = c.id_contacto
+   JOIN alumno_se_matricula_asignatura asm ON a.id_alumno = asm.id_alumno
+   JOIN Asignatura asign ON asm.id_asignatura = asign.id_asignatura
+   JOIN Grado g ON asign.id_grado = g.id_grado
+   JOIN curso_escolar ce ON asm.id_curso_escolar = ce.id_curso_escolar
+   WHERE c.sex = 'M' 
+   AND g.nombre_grado = 'Ingeniería Informática'
+   AND ce.anyo_inicio = 2015;
+   ```
+
+7. Vista que muestra las  asignaturas de Ingeniería Informática (Plan 2015)
+
+   ```sql
+   CREATE VIEW Asignaturas_Informatica AS
+   SELECT a.id_asignatura, a.Nombre_asignatura, a.creditos
+   FROM Asignatura a
+   JOIN Grado g ON a.id_grado = g.id_grado
+   WHERE g.nombre_grado = 'Ingeniería Informática';
+   ```
+
+8. Vista que devuelve el listado de profesores que no han dado de alta su número de  teléfono en la base de datos y además su nif termina en x.
+
+   ```sql
+   CREATE VIEW Profesores_Sin_Telefono_X AS
+   SELECT p.Nombre_profesor, p.Apellido1_profesor, p.Apellido2_profesor
+   FROM profesor AS p
+   INNER JOIN profesor_detalle AS pd ON p.id_profesor = pd.id_profesor
+   INNER JOIN contacto AS c ON pd.id_contacto = c.id_contacto
+   WHERE (c.telefono IS NULL OR c.telefono = '')
+   AND c.nif LIKE '%x';
+   ```
+
+9. Vista que devuelve el listado de los alumnos que se han matriculado en alguna asignatura durante el curso escolar 2018/2019.
+
+   ```sql
+   CREATE VIEW Alumnos_Matriculados_2018_2019 AS
+   SELECT al.Nombre_alumno, al.Apellido1_alumno, al.Apellido2_alumno
+   FROM alumno al
+   JOIN alumno_se_matricula_asignatura asm ON al.id_alumno = asm.id_alumno
+   JOIN curso_escolar ce ON asm.id_curso_escolar = ce.id_curso_escolar
+   WHERE ce.anyo_inicio = 2018 AND ce.anyo_fin = 2019;
+   ```
+
+10. Vista que devuelve el  total de alumnas que hay.
+
+    ```sql
+    CREATE VIEW total_alumnas AS
+    SELECT COUNT(a.id_alumno) AS total_alumnas
+    FROM alumno as a
+    INNER jOIN  alumno_detalle AS al ON a.id_alumno = al.id_alumno
+    INNER JOIN contacto AS c ON al.id_contacto = c.id_contacto
+    WHERE c.sex = 'M';
+    ```
+
+    
 
 ##### Procedimientos
+
+1. Procedimiento para crear un nuevo alumno en la base de datos.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_crear_alumno (
+       IN p_nombre VARCHAR(50),
+       IN p_apellido1 VARCHAR(50),
+       IN p_apellido2 VARCHAR(50),
+       IN p_fecha_nacimiento DATE
+   )
+   BEGIN
+       INSERT INTO alumno (Nombre_alumno, Apellido1_alumno, Apellido2_alumno)
+       VALUES (p_nombre, p_apellido1, p_apellido2);
+       SET @id_alumno = LAST_INSERT_ID();
+   
+       INSERT INTO contacto (id_alumno, fecha_nacimiento)
+       VALUES (@id_alumno, p_fecha_nacimiento);
+   END;
+   ```
+
+2.  Procedimiento para actualizar los datos de un profesor en la base de datos.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_actualizar_profesor (
+       IN p_id_profesor INT,
+       IN p_nombre VARCHAR(50),
+       IN p_apellido1 VARCHAR(50),
+       IN p_apellido2 VARCHAR(50)
+   )
+   BEGIN
+       UPDATE profesor
+       SET Nombre_profesor = p_nombre, Apellido1_profesor = p_apellido1, Apellido2_profesor = p_apellido2
+       WHERE id_profesor = p_id_profesor;
+   END;
+   ```
+
+3. Procedimiento para eliminar una asignatura de la base de datos.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_eliminar_asignatura (
+       IN p_id_asignatura INT
+   )
+   BEGIN
+       DELETE FROM Asignatura
+       WHERE id_asignatura = p_id_asignatura;
+   END;
+   ```
+
+4. Procedimiento para buscar alumnos por su nombre.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_buscar_alumnos_por_nombre (
+       IN p_nombre VARCHAR(50)
+   )
+   BEGIN
+       SELECT 
+       FROM alumno
+       WHERE Nombre_alumno = p_nombre;
+   END;
+   ```
+
+5. Procedimiento para crear un nuevo departamento en la base de datos.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_crear_departamento (
+       IN p_nombre VARCHAR(50)
+   )
+   BEGIN
+       INSERT INTO departamento (Nombre_departamento)
+       VALUES (p_nombre);
+   END;
+   ```
+
+6.  Procedimiento para actualizar los datos de un curso escolar.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_actualizar_curso_escolar (
+       IN p_id_curso_escolar INT,
+       IN p_anyo_inicio INT,
+       IN p_anyo_fin INT
+   )
+   BEGIN
+       UPDATE curso_escolar
+       SET anyo_inicio = p_anyo_inicio, anyo_fin = p_anyo_fin
+       WHERE id_curso_escolar = p_id_curso_escolar;
+   END;
+   ```
+
+7. Procedimiento para eliminar un profesor de la base de datos.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_eliminar_profesor (
+       IN p_id_profesor INT
+   )
+   BEGIN
+       DELETE FROM profesor
+       WHERE id_profesor = p_id_profesor;
+   END;
+   ```
+
+8. Procedimiento para buscar asignaturas por su nombre.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_buscar_asignaturas_por_nombre (
+       IN p_nombre VARCHAR(50)
+   )
+   BEGIN
+       SELECT  id_asignatura, Nombre_asignatura, creditos, id_profesor, id_grado
+       FROM Asignatura
+       WHERE Nombre_asignatura = p_nombre;
+   END;
+   ```
+
+9. Procedimiento para crear un nuevo curso en la base de datos.
+
+   ```sql
+   DELIMITER //
+   CREATE PROCEDURE SP_crear_curso (
+       IN p_nombre_curso VARCHAR(50),
+       IN p_fecha_inicio DATE,
+       IN p_fecha_fin DATE
+   )
+   BEGIN
+       INSERT INTO Curso (Nombre_curso, fecha_inicio, fecha_fin)
+       VALUES (p_nombre_curso, p_fecha_inicio, p_fecha_fin);
+   END;
+   ```
+
+10. Procedimiento para actualizar los datos de un departamento.
+
+    ```sql
+    DELIMITER //
+    CREATE PROCEDURE SP_actualizar_departamento (
+        IN p_id_departamento INT,
+        IN p_nombre VARCHAR(50)
+    )
+    BEGIN
+        UPDATE departamento
+        SET Nombre_departamento = p_nombre
+        WHERE id_departamento = p_id_departamento;
+    END;
+    ```
+
+    
+
 
